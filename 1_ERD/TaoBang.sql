@@ -23,7 +23,7 @@ CREATE TABLE transactions(
     account_source_id VARCHAR(20) NULL,
     account_receiver_id VARCHAR(20) NULL,
     amount DECIMAL(20,2) NOT NULL,
-    transaction_type VARCHAR(10) NOT NULL,
+    transaction_type CHAR(3) NOT NULL,
     time DATETIME DEFAULT CURRENT_TIMESTAMP,
     
     FOREIGN KEY (transaction_type) REFERENCES transaction_type(transaction_type_id),
@@ -35,5 +35,4 @@ INSERT INTO transaction_type
 VALUES
 ('DPS', 'DEPOSIT'),
 ('TSR', 'TRANSFER'),
-('WIT', 'WITHDRAW')
-
+('WIT', 'WITHDRAW');
