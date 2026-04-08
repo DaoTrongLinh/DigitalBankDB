@@ -14,8 +14,8 @@ CREATE TABLE accounts(
 );
 
 CREATE TABLE transaction_type(
-	transaction_type_id VARCHAR(3) PRIMARY KEY,
-    transaction_type_name VARCHAR(30) NOT NULL
+	transaction_type_id CHAR(3) PRIMARY KEY,
+    transaction_type_name VARCHAR(20) NOT NULL
 );
 
 CREATE TABLE transactions(
