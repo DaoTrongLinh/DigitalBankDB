@@ -31,20 +31,9 @@ BEGIN
             SET balance = balance - p_amount
             WHERE account_id = p_account_id;
 
-            INSERT INTO transactions (
-                account_source_id,
-                account_receiver_id,
-                employee_id,
-                amount,
-                transaction_type
-            )
-            VALUES (
-                p_account_id, 
-                NULL,          
-                p_employee_id, 
-                p_amount,
-                'WDR'
-            );
+            INSERT INTO transactions (account_source_id, account_receiver_id,
+										employee_id, amount, transaction_type)
+            VALUES (p_account_id, NULL, p_employee_id, p_amount, 'WIT');
 
            
             COMMIT;

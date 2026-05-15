@@ -9,23 +9,18 @@ BEGIN
     DECLARE v_sender_balance DECIMAL(20,2);
     DECLARE v_receiver_exists INT;
 
-    -- 1. Thiết lập mức độ cô lập 
     SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
     
-    -- 2. Bắt đầu giao dịch
     START TRANSACTION;
 
-        -- 3. Kiểm tra logic cơ bản
         IF p_amount <= 0 OR p_sender_account_id = p_receiver_account_id THEN
             ROLLBACK;
             SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Lỗi: Số tiền không hợp lệ hoặc trùng tài khoản.';
         END IF;
 
-        -- 4. Đọc dữ liệu 
         SELECT balance INTO v_sender_balance FROM accounts WHERE account_id = p_sender_account_id;
         SELECT COUNT(*) INTO v_receiver_exists FROM accounts WHERE account_id = p_receiver_account_id;
 
-        -- 5. Kiểm tra tài khoản và số dư
         IF v_sender_balance IS NULL OR v_receiver_exists = 0 THEN
             ROLLBACK;
             SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Lỗi: Tài khoản không tồn tại.';
@@ -33,11 +28,9 @@ BEGIN
             ROLLBACK;
             SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Lỗi: Số dư tài khoản gửi không đủ.';
         ELSE
-            -- 6. Thực thi luân chuyển dòng tiền
             UPDATE accounts SET balance = balance - p_amount WHERE account_id = p_sender_account_id;
             UPDATE accounts SET balance = balance + p_amount WHERE account_id = p_receiver_account_id;
 
-            -- 7. Ghi sổ cái
             INSERT INTO transactions (account_source_id, account_receiver_id, employee_id, amount, transaction_type)
             VALUES (p_sender_account_id, p_receiver_account_id, p_employee_id, p_amount, 'TSR');
 
