@@ -1,5 +1,4 @@
 DELIMITER //
-
 CREATE PROCEDURE sp_DisburseLoan(
     IN p_customer_id INT,
     IN p_account_id VARCHAR(20),
@@ -9,48 +8,45 @@ CREATE PROCEDURE sp_DisburseLoan(
     IN p_employee_id INT
 )
 BEGIN
-    -- Khai báo biến kiểm tra
     DECLARE v_account_exists INT;
+    DECLARE v_total_interest DECIMAL(20,2); -- Biến mới để chứa tiền lãi
 
-    -- 1. Thiết lập mức độ cô lập
     SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
-    
-    -- 2. Bắt đầu giao dịch an toàn
     START TRANSACTION;
 
-        -- 3. Kiểm tra logic đầu vào (Tiền, kỳ hạn, lãi suất phải hợp lệ)
         IF p_amount <= 0 OR p_term_months <= 0 OR p_interest_rate < 0 THEN
             ROLLBACK;
-            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Lỗi: Thông tin giải ngân (số tiền, kỳ hạn, lãi suất) không hợp lệ.';
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Lỗi: Thông tin giải ngân không hợp lệ.';
         END IF;
 
-        -- 4. Kiểm tra xem tài khoản có tồn tại và CÓ ĐÚNG là của khách hàng này không
         SELECT COUNT(*) INTO v_account_exists 
         FROM accounts 
         WHERE account_id = p_account_id AND customer_id = p_customer_id;
 
         IF v_account_exists = 0 THEN
             ROLLBACK;
-            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Lỗi: Tài khoản không tồn tại hoặc không thuộc về khách hàng này.';
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Lỗi: Tài khoản không hợp lệ.';
         ELSE
-            -- 5. Chèn vào bảng loans (Tạo hợp đồng vay)
+            -- TÍNH TOÁN TỔNG LÃI TẠI ĐÂY
+            SET v_total_interest = p_amount * (p_interest_rate / 100) * (p_term_months / 12);
+
+            -- Chèn vào bảng loans (Cập nhật thêm cột interest_due)
             INSERT INTO loans (
                 customer_id, loan_amount, remaining_balance, 
-                interest_rate, term_months, status, maturity_date
+                interest_rate, term_months, status, maturity_date,
+                interest_due -- THÊM CỘT NÀY VÀO LÚC INSERT
             ) 
             VALUES (
                 p_customer_id, p_amount, p_amount, 
                 p_interest_rate, p_term_months, 'Active', 
-                DATE_ADD(CURRENT_TIMESTAMP, INTERVAL p_term_months MONTH)
+                DATE_ADD(CURRENT_TIMESTAMP, INTERVAL p_term_months MONTH),
+                v_total_interest -- NẠP SỐ TIỀN LÃI VÀO ĐÂY
             );
 
-            -- 6. Cộng tiền giải ngân vào tài khoản của khách hàng
             UPDATE accounts 
             SET balance = balance + p_amount 
             WHERE account_id = p_account_id;
 
-            -- 7. Ghi nhận vào sổ cái transactions
-            -- account_receiver_id có dữ liệu, account_source_id để NULL vì tiền từ ngân hàng xuất ra
             INSERT INTO transactions (
                 account_receiver_id, employee_id, amount, transaction_type
             ) 
@@ -58,10 +54,8 @@ BEGIN
                 p_account_id, p_employee_id, p_amount, 'LDB'
             );
 
-            -- 8. Hoàn tất và lưu vĩnh viễn
             COMMIT;
         END IF;
-
 END //
-
 DELIMITER ;
+
