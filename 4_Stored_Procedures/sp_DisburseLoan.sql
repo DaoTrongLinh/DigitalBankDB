@@ -1,3 +1,5 @@
+DROP PROCEDURE IF EXISTS sp_DisburseLoan;
+
 DELIMITER //
 CREATE PROCEDURE sp_DisburseLoan(
     IN p_customer_id INT,
@@ -9,7 +11,14 @@ CREATE PROCEDURE sp_DisburseLoan(
 )
 BEGIN
     DECLARE v_account_exists INT;
-    DECLARE v_total_interest DECIMAL(20,2); -- Biến mới để chứa tiền lãi
+    DECLARE v_total_interest DECIMAL(20,2); 
+    
+    -- Đội cứu hộ khẩn cấp
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION 
+    BEGIN 
+        ROLLBACK; 
+        RESIGNAL; 
+    END;
 
     SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
     START TRANSACTION;
@@ -27,35 +36,26 @@ BEGIN
             ROLLBACK;
             SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Lỗi: Tài khoản không hợp lệ.';
         ELSE
-            -- TÍNH TOÁN TỔNG LÃI TẠI ĐÂY
             SET v_total_interest = p_amount * (p_interest_rate / 100) * (p_term_months / 12);
 
-            -- Chèn vào bảng loans (Cập nhật thêm cột interest_due)
             INSERT INTO loans (
                 customer_id, loan_amount, remaining_balance, 
                 interest_rate, term_months, status, maturity_date,
-                interest_due -- THÊM CỘT NÀY VÀO LÚC INSERT
+                interest_due 
             ) 
             VALUES (
                 p_customer_id, p_amount, p_amount, 
                 p_interest_rate, p_term_months, 'Active', 
                 DATE_ADD(CURRENT_TIMESTAMP, INTERVAL p_term_months MONTH),
-                v_total_interest -- NẠP SỐ TIỀN LÃI VÀO ĐÂY
+                v_total_interest 
             );
 
-            UPDATE accounts 
-            SET balance = balance + p_amount 
-            WHERE account_id = p_account_id;
+            UPDATE accounts SET balance = balance + p_amount WHERE account_id = p_account_id;
 
-            INSERT INTO transactions (
-                account_receiver_id, employee_id, amount, transaction_type
-            ) 
-            VALUES (
-                p_account_id, p_employee_id, p_amount, 'LDB'
-            );
+            INSERT INTO transactions (account_receiver_id, employee_id, amount, transaction_type) 
+            VALUES (p_account_id, p_employee_id, p_amount, 'LDB');
 
             COMMIT;
         END IF;
 END //
 DELIMITER ;
-

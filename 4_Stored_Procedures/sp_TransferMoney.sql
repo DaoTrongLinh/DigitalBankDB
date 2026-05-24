@@ -1,3 +1,5 @@
+DROP PROCEDURE IF EXISTS sp_TransferMoney;
+
 DELIMITER //
 CREATE PROCEDURE sp_TransferMoney(
     IN p_sender_account_id VARCHAR(20),
@@ -8,14 +10,33 @@ CREATE PROCEDURE sp_TransferMoney(
 BEGIN
     DECLARE v_sender_balance DECIMAL(20,2);
     DECLARE v_receiver_exists INT;
+    DECLARE v_today_spent DECIMAL(20,2) DEFAULT 0;
+
+    -- Đội cứu hộ khẩn cấp
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION 
+    BEGIN 
+        ROLLBACK; 
+        RESIGNAL; 
+    END;
 
     SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
-    
     START TRANSACTION;
 
         IF p_amount <= 0 OR p_sender_account_id = p_receiver_account_id THEN
             ROLLBACK;
             SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Lỗi: Số tiền không hợp lệ hoặc trùng tài khoản.';
+        END IF;
+
+        -- Kiểm tra hạn mức
+        SELECT COALESCE(SUM(amount), 0) INTO v_today_spent 
+        FROM transactions 
+        WHERE account_source_id = p_sender_account_id 
+          AND transaction_type = 'TSR' 
+          AND DATE(transaction_date) = CURDATE();
+
+        IF (v_today_spent + p_amount) > 50000000 THEN
+            ROLLBACK;
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Lỗi Giao Dịch: Vượt quá hạn mức chuyển 50.000.000đ/ngày!';
         END IF;
 
         SELECT balance INTO v_sender_balance FROM accounts WHERE account_id = p_sender_account_id;
@@ -38,4 +59,3 @@ BEGIN
         END IF;
 END //
 DELIMITER ;
-

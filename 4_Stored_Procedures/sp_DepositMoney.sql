@@ -1,3 +1,5 @@
+DROP PROCEDURE IF EXISTS sp_DepositMoney;
+
 DELIMITER //
 CREATE PROCEDURE sp_DepositMoney(
     IN p_account_id VARCHAR(20),
@@ -6,6 +8,13 @@ CREATE PROCEDURE sp_DepositMoney(
 )
 BEGIN
     DECLARE v_account_exists INT;
+    
+    -- Đội cứu hộ khẩn cấp
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION 
+    BEGIN 
+        ROLLBACK; 
+        RESIGNAL; 
+    END;
 
     -- Nạp tiền chỉ cần mức READ COMMITTED để tối ưu tốc độ
     SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
@@ -22,10 +31,8 @@ BEGIN
             ROLLBACK;
             SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Lỗi: Tài khoản không tồn tại.';
         ELSE
-            -- Thực thi nạp tiền
             UPDATE accounts SET balance = balance + p_amount WHERE account_id = p_account_id;
 
-            -- Ghi sổ cái
             INSERT INTO transactions (account_source_id, account_receiver_id, employee_id, amount, transaction_type)
             VALUES (NULL, p_account_id, p_employee_id, p_amount, 'DPS');
 
