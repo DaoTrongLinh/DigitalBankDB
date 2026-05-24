@@ -22,12 +22,18 @@ BEGIN
     SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
     START TRANSACTION;
 
-        IF p_amount <= 0 OR p_sender_account_id = p_receiver_account_id THEN
+        -- CHỐT CHẶN HẠN MỨC TỐI THIỂU VÀ TRÙNG TÀI KHOẢN
+        IF p_amount < 1000 THEN
             ROLLBACK;
-            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Lỗi: Số tiền không hợp lệ hoặc trùng tài khoản.';
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Lỗi Giao Dịch: Số tiền chuyển tối thiểu phải từ 1.000đ trở lên.';
+        END IF;
+        
+        IF p_sender_account_id = p_receiver_account_id THEN
+            ROLLBACK;
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Lỗi Giao Dịch: Không thể chuyển tiền cho chính mình.';
         END IF;
 
-        -- Kiểm tra hạn mức
+        -- Kiểm tra hạn mức tối đa trong ngày
         SELECT COALESCE(SUM(amount), 0) INTO v_today_spent 
         FROM transactions 
         WHERE account_source_id = p_sender_account_id 

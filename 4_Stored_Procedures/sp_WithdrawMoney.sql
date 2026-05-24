@@ -10,7 +10,6 @@ BEGIN
     DECLARE v_balance DECIMAL(20,2);
     DECLARE v_today_spent DECIMAL(20,2) DEFAULT 0;
 
-    -- Đội cứu hộ khẩn cấp
     DECLARE EXIT HANDLER FOR SQLEXCEPTION 
     BEGIN 
         ROLLBACK; 
@@ -20,12 +19,13 @@ BEGIN
     SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
     START TRANSACTION;
 
-        IF p_amount <= 0 THEN
+        -- CHỐT CHẶN HẠN MỨC TỐI THIỂU
+        IF p_amount < 1000 THEN
             ROLLBACK;
-            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Lỗi: Số tiền rút phải lớn hơn 0.';
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Lỗi Giao Dịch: Số tiền rút tối thiểu phải từ 1.000đ trở lên.';
         END IF;
 
-        -- Kiểm tra hạn mức
+        -- Kiểm tra hạn mức tối đa trong ngày
         SELECT COALESCE(SUM(amount), 0) INTO v_today_spent 
         FROM transactions 
         WHERE account_source_id = p_account_id 

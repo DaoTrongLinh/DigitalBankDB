@@ -13,7 +13,6 @@ BEGIN
     DECLARE v_account_exists INT;
     DECLARE v_total_interest DECIMAL(20,2); 
     
-    -- Đội cứu hộ khẩn cấp
     DECLARE EXIT HANDLER FOR SQLEXCEPTION 
     BEGIN 
         ROLLBACK; 
@@ -23,9 +22,15 @@ BEGIN
     SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
     START TRANSACTION;
 
-        IF p_amount <= 0 OR p_term_months <= 0 OR p_interest_rate < 0 THEN
+        -- CHỐT CHẶN HẠN MỨC VÀ ĐIỀU KIỆN HỢP ĐỒNG
+        IF p_amount < 5000000 THEN
             ROLLBACK;
-            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Lỗi: Thông tin giải ngân không hợp lệ.';
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Lỗi Giao Dịch: Số tiền giải ngân tối thiểu phải từ 5.000.000đ trở lên.';
+        END IF;
+
+        IF p_term_months <= 0 OR p_interest_rate < 0 THEN
+            ROLLBACK;
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Lỗi: Kỳ hạn hoặc lãi suất giải ngân không hợp lệ.';
         END IF;
 
         SELECT COUNT(*) INTO v_account_exists 
@@ -34,7 +39,7 @@ BEGIN
 
         IF v_account_exists = 0 THEN
             ROLLBACK;
-            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Lỗi: Tài khoản không hợp lệ.';
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Lỗi: Tài khoản nhận giải ngân không hợp lệ.';
         ELSE
             SET v_total_interest = p_amount * (p_interest_rate / 100) * (p_term_months / 12);
 

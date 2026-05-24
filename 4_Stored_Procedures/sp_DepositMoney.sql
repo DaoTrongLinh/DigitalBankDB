@@ -9,20 +9,19 @@ CREATE PROCEDURE sp_DepositMoney(
 BEGIN
     DECLARE v_account_exists INT;
     
-    -- Đội cứu hộ khẩn cấp
     DECLARE EXIT HANDLER FOR SQLEXCEPTION 
     BEGIN 
         ROLLBACK; 
         RESIGNAL; 
     END;
 
-    -- Nạp tiền chỉ cần mức READ COMMITTED để tối ưu tốc độ
     SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
     START TRANSACTION;
 
-        IF p_amount <= 0 THEN
+        -- CHỐT CHẶN HẠN MỨC TỐI THIỂU
+        IF p_amount < 1000 THEN
             ROLLBACK;
-            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Lỗi: Số tiền nạp phải lớn hơn 0.';
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Lỗi Giao Dịch: Số tiền nạp tối thiểu phải từ 1.000đ trở lên.';
         END IF;
 
         SELECT COUNT(*) INTO v_account_exists FROM accounts WHERE account_id = p_account_id;
