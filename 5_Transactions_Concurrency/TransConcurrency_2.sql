@@ -1,1 +1,1 @@
-CALL sp_withdraw('002604000001', 0, 1);
+CALL sp_withdraw('002604000001', 1000, 1);

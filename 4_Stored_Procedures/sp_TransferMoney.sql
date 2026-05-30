@@ -35,10 +35,10 @@ BEGIN
 
         -- Kiểm tra hạn mức tối đa trong ngày
         SELECT COALESCE(SUM(amount), 0) INTO v_today_spent 
-        FROM transactions 
+        FROM transactions t
         WHERE account_source_id = p_sender_account_id 
           AND transaction_type = 'TSR' 
-          AND DATE(transaction_date) = CURDATE();
+          AND DATE(t.time) = CURDATE();
 
         IF (v_today_spent + p_amount) > 50000000 THEN
             ROLLBACK;
