@@ -15,13 +15,19 @@ BEGIN
         RESIGNAL; 
     END;
 
-    SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+    SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
     START TRANSACTION;
 
-        -- CHỐT CHẶN HẠN MỨC TỐI THIỂU
+        -- CHỐT CHẶN HẠN MỨC TỐI THIỂU VÀ TỐI ĐA
         IF p_amount < 1000 THEN
             ROLLBACK;
             SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Lỗi Giao Dịch: Số tiền nạp tối thiểu phải từ 1.000đ trở lên.';
+        END IF;
+        
+        -- BỔ SUNG HẠN MỨC MAX
+        IF p_amount > 1000000000 THEN 
+            ROLLBACK;
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Lỗi Giao Dịch: Vượt quá hạn mức nạp tiền tối đa (1.000.000.000đ/lần)!';
         END IF;
 
         SELECT COUNT(*) INTO v_account_exists FROM accounts WHERE account_id = p_account_id;
